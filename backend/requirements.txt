@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+torch
+pydantic
+passlib[bcrypt]
+PyJWT
+python-multipart
+mysql-connector-python
+pandas
+SQLAlchemy
+pymysql
+scikit-learn
