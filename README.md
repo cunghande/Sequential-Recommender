@@ -7,8 +7,11 @@ Trong thương mại điện tử hiện đại, việc gợi ý sản phẩm ph
 Thay vì chỉ dựa trên sở thích tĩnh, hệ thống này nắm bắt được sự thay đổi linh hoạt trong ý định mua sắm của người dùng theo thời gian thực (Real-time).
 
 ## 2. Bộ dữ liệu (Dataset)
-Dự án sử dụng bộ dữ liệu **Amazon Beauty** (được trích xuất từ Amazon Product Data).
-- **Mô tả:** Bộ dữ liệu chứa thông tin về các sản phẩm làm đẹp, bao gồm lịch sử đánh giá, lượt xem và thông tin chi tiết sản phẩm.
+Dự án sử dụng bộ dữ liệu **Amazon Product Data** (Ví dụ: mảng Video Games).
+- **Trang chủ Dataset:** [https://nijianmo.github.io/amazon/index.html](https://nijianmo.github.io/amazon/index.html)
+- **Link tải trực tiếp (Mảng Video Games):**
+  - **Review Data:** `Video_Games.json.gz` (Tải trên trang chủ)
+  - **Metadata:** `meta_Video_Games.jsonl.gz` (Tải trên trang chủ)
 - **Xử lý:** Dữ liệu được tiền xử lý để trích xuất các chuỗi tương tác (interaction sequences) của từng người dùng, được sắp xếp theo trình tự thời gian.
 
 ## 3. Các mô hình sử dụng
@@ -18,14 +21,14 @@ Hệ thống thử nghiệm và triển khai các mô hình Deep Learning chuyê
 
 ## 4. Kết quả đánh giá
 Kết quả huấn luyện trên tập dữ liệu kiểm thử (Test set):
-- **LSTM:**
-  - HR@10 (Hit Ratio): `0.5459`
-  - NDCG@10 (Normalized Discounted Cumulative Gain): `0.3359`
-- **GRU4Rec:**
-  - HR@10 (Hit Ratio): `0.5484`
-  - NDCG@10 (Normalized Discounted Cumulative Gain): `0.3370`
 
-*Mô hình GRU4Rec cho hiệu suất tốt hơn một chút và được chọn làm mô hình chính để suy luận (inference) trên Backend.*
+| Mô hình | HR@10 | NDCG@10 |
+| :--- | :---: | :---: |
+| **Item KNN** (Baseline) | 0.1378 | 0.1330 |
+| **LSTM** | 0.5459 | 0.3359 |
+| **GRU4Rec** | **0.5484** | **0.3370** |
+
+*Mô hình GRU4Rec cho hiệu suất tốt nhất và được chọn làm mô hình chính để suy luận (inference) trên Backend.*
 
 ## 5. Hướng dẫn cài đặt và chạy dự án
 
@@ -36,12 +39,12 @@ Kết quả huấn luyện trên tập dữ liệu kiểm thử (Test set):
 - Docker & Docker Compose (Nếu muốn chạy bằng Docker)
 
 ### Cấu hình biến môi trường
-Mật khẩu và cấu hình Database được bảo mật thông qua file `.env`. Trong thư mục `backend/` đã có file `.env` mẫu:
+Bạn cần tự thiết lập một Cơ sở dữ liệu MySQL. Sau đó tạo một file `.env` trong thư mục `backend/` (hoặc copy từ file `.env.example` nếu có) với nội dung tương tự như sau để kết nối:
 ```env
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=cunghande
-DB_NAME=recommendation_db
+DB_USER=your_mysql_username
+DB_PASSWORD=your_mysql_password
+DB_NAME=your_database_name
 ```
 
 ### Cách 1: Chạy bằng Docker (Khuyên dùng)
@@ -57,8 +60,8 @@ docker-compose up -d --build
 ### Cách 2: Chạy thủ công
 
 #### Bước 1: Khởi tạo Database
-1. Mở MySQL và tạo database `recommendation_db`.
-2. Import schema và data từ các file `data/database.sql` và `data/migrate_v2.sql`.
+1. Mở MySQL và tự tạo một database cho dự án (ví dụ: `your_database_name`).
+2. Tự tạo các bảng cần thiết (ví dụ: `users`, `products`, `interactions`) với cấu trúc tương ứng với ứng dụng, hoặc import từ file `data/database.sql` nếu có sẵn cấu trúc.
 
 #### Bước 2: Chạy Backend (FastAPI)
 ```bash
@@ -87,3 +90,8 @@ npm install
 npm run dev
 ```
 Trang web chạy tại: `http://localhost:3000`
+
+---
+
+**Tác giả:** Cung Do  
+**Email:** docung926@gmail.com
