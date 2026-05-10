@@ -39,22 +39,24 @@ class RecommenderService:
             self.item2id   = {v: k for k, v in self.id2item.items()}
             self.train_data = self.artifacts.get('sequences', {}).get('train', {})
         except Exception as e:
-            print(f"❌ Error loading data: {e}")
+            print(f"[ERROR] Error loading data: {e}")
 
     def _load_metadata_from_db(self):
         try:
             conn = get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute(
-                "SELECT product_id as asin, title, category, price, image_url as img_url FROM products"
-            )
-            rows = cursor.fetchall()
-            self.rich_metadata = {r['asin']: r for r in rows}
-            cursor.close()
-            conn.close()
-            print(f"✅ Loaded {len(self.rich_metadata)} products from MySQL.")
+            try:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute(
+                    "SELECT product_id as asin, title, category, price, image_url as img_url FROM products"
+                )
+                rows = cursor.fetchall()
+                self.rich_metadata = {r['asin']: r for r in rows}
+                cursor.close()
+            finally:
+                conn.close()
+            print(f"[OK] Loaded {len(self.rich_metadata)} products from MySQL.")
         except Exception as e:
-            print(f"❌ Không thể kết nối MySQL: {e}")
+            print(f"[ERROR] Không thể kết nối MySQL: {e}")
             self.rich_metadata = {}
 
     def _load_model(self):
@@ -72,11 +74,11 @@ class RecommenderService:
                     torch.load(model_path, map_location=DEVICE, weights_only=True)
                 )
                 self.model.eval()
-                print(f"✅ Model loaded. Num items: {self.cfg.get('num_items')}")
+                print(f"[OK] Model loaded. Num items: {self.cfg.get('num_items')}")
             else:
-                print(f"⚠️ Model file not found at {model_path}")
+                print(f"[WARNING] Model file not found at {model_path}")
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f"[ERROR] Error loading model: {e}")
 
     # ── Helpers ─────────────────────────────────────────────────────────────
     def _enrich(self, item_id: int, score: float = 0.0) -> dict:
@@ -120,18 +122,27 @@ class RecommenderService:
             return self.popular_cache[:top_k]
         try:
             conn = get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT i.product_id, COUNT(*) as view_count
-                FROM interactions i
-                WHERE i.action_type = 'view'
-                GROUP BY i.product_id
-                ORDER BY view_count DESC
-                LIMIT %s
-            """, (top_k * 2,))
-            rows = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            try:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT i.product_id,
+                           SUM(CASE
+                               WHEN i.action_type = 'purchase' THEN 5
+                               WHEN i.action_type = 'cart' THEN 3
+                               WHEN i.action_type = 'rate' AND COALESCE(i.rating, 0) >= 4 THEN 4
+                               WHEN i.action_type = 'like' THEN 4
+                               ELSE 1
+                           END) as popularity_score
+                    FROM interactions i
+                    WHERE i.action_type IN ('view', 'cart', 'purchase', 'like', 'rate')
+                    GROUP BY i.product_id
+                    ORDER BY popularity_score DESC
+                    LIMIT %s
+                """, (top_k * 2,))
+                rows = cursor.fetchall()
+                cursor.close()
+            finally:
+                conn.close()
 
             result = []
             for row in rows:
@@ -157,24 +168,26 @@ class RecommenderService:
             self.popular_cache = result
             return result[:top_k]
         except Exception as e:
-            print(f"❌ get_popular_products: {e}")
+            print(f"[ERROR] get_popular_products: {e}")
             return []
 
     def get_user_history_from_db(self, user_id: str) -> list:
         """Lấy lịch sử interaction của user từ MySQL (item_id list)."""
         try:
             conn = get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT i.product_id
-                FROM interactions i
-                WHERE i.user_id = %s AND i.action_type IN ('view', 'rate')
-                ORDER BY i.timestamp DESC
-                LIMIT 50
-            """, (str(user_id),))
-            rows = cursor.fetchall()
-            cursor.close()
-            conn.close()
+            try:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT i.product_id
+                    FROM interactions i
+                    WHERE i.user_id = %s AND i.action_type IN ('view', 'cart', 'purchase', 'like', 'rate')
+                    ORDER BY i.timestamp DESC
+                    LIMIT 50
+                """, (str(user_id),))
+                rows = cursor.fetchall()
+                cursor.close()
+            finally:
+                conn.close()
             ids = []
             for row in rows:
                 asin = row['product_id']
@@ -183,7 +196,7 @@ class RecommenderService:
                     ids.append(iid)
             return list(reversed(ids))  # chronological order
         except Exception as e:
-            print(f"❌ get_user_history_from_db: {e}")
+            print(f"[ERROR] get_user_history_from_db: {e}")
             return []
 
     def get_recommendations_for_user(self, user_id: str, top_k: int = 12) -> dict:
@@ -216,20 +229,36 @@ class RecommenderService:
         return self._predict(sequence_history, top_k)
 
     def get_user_history(self, user_id: str) -> list | None:
-        """Lịch sử hiển thị (có thông tin sản phẩm đầy đủ)."""
+        """Lịch sử hiển thị (có thông tin sản phẩm đầy đủ).
+        Kết hợp: train_data (cũ) + DB interactions + session (realtime).
+        """
         u_key = int(user_id) if str(user_id).isdigit() else user_id
-        hist = self.train_data.get(u_key)
 
-        # Ưu tiên history từ DB interactions
-        db_hist_ids = self.get_user_history_from_db(user_id)
-        if db_hist_ids:
-            hist = db_hist_ids
+        # Thu thập từ nhiều nguồn
+        train_hist = list(self.train_data.get(u_key, []))
+        db_hist = self.get_user_history_from_db(user_id)
+        session_hist = sess_mgr.get_sequence(user_id)
 
-        if hist is None:
+        # Merge: train_data → DB → session (ưu tiên mới nhất)
+        seen = set()
+        merged = []
+        # Duyệt ngược ưu tiên: session > DB > train_data
+        for iid in reversed(session_hist + db_hist):
+            if iid not in seen and iid > 0:
+                seen.add(iid)
+                merged.append(iid)
+        for iid in reversed(train_hist):
+            if iid not in seen and iid > 0:
+                seen.add(iid)
+                merged.append(iid)
+
+        merged = list(reversed(merged))  # chronological order
+
+        if not merged:
             return None
 
         items_info = []
-        for iid in hist[-15:]:
+        for iid in merged[-15:]:
             asin = self.id2item.get(iid, '?')
             m = self.rich_metadata.get(asin, self.meta.get(asin, {}))
             items_info.append({
@@ -248,22 +277,26 @@ class RecommenderService:
         # 1. Lưu vào DB
         try:
             conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO interactions (user_id, product_id, action_type, rating) VALUES (%s, %s, %s, %s)",
-                (str(user_id), product_asin, action_type, rating)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO interactions (user_id, product_id, action_type, rating) VALUES (%s, %s, %s, %s)",
+                    (str(user_id), product_asin, action_type, rating)
+                )
+                conn.commit()
+                cursor.close()
+            finally:
+                conn.close()
         except Exception as e:
-            print(f"❌ record_interaction DB: {e}")
+            print(f"[ERROR] record_interaction DB: {e}")
 
         # 2. Cập nhật session
         item_id = self.item2id.get(product_asin, -1)
         if item_id >= 0:
-            if rating and rating >= 4:
+            if action_type in ('purchase', 'like') or (rating and rating >= 4):
                 sess_mgr.boost_sequence(user_id, item_id, times=3)
+            elif action_type == 'cart':
+                sess_mgr.boost_sequence(user_id, item_id, times=2)
             else:
                 sess_mgr.add_to_sequence(user_id, item_id)
 
@@ -278,6 +311,41 @@ class RecommenderService:
             return None
         item_id = self.item2id.get(asin, -1)
         return self._enrich(item_id, 0.0)
+
+    def delete_interaction(self, user_id: str, product_asin: str) -> dict:
+        """
+        Xóa tất cả interaction của user với product_asin khỏi DB và session.
+        Trả về history mới và recommendations mới.
+        """
+        # 1. Xóa khỏi DB
+        try:
+            conn = get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM interactions WHERE user_id = %s AND product_id = %s",
+                    (str(user_id), product_asin)
+                )
+                conn.commit()
+                cursor.close()
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[ERROR] delete_interaction DB: {e}")
+
+        # 2. Xóa khỏi session
+        item_id = self.item2id.get(product_asin, -1)
+        if item_id >= 0:
+            sess_mgr.remove_from_sequence(user_id, item_id)
+
+        # 3. Trả về kết quả mới
+        new_history = self.get_user_history(user_id)
+        new_recs = self.get_recommendations_for_user(user_id, top_k=12)
+        return {
+            "history": new_history or [],
+            "recommendations": new_recs.get("recommendations", []),
+            "source": new_recs.get("source", "popular")
+        }
 
     def get_stats(self):
         return self.artifacts.get('results', {"HR_10": 0.198, "NDCG_10": 0.105})

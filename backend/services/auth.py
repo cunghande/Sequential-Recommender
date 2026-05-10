@@ -65,6 +65,18 @@ def get_user_by_email(email: str) -> dict | None:
     conn.close()
     return row
 
+def get_user_by_login_identifier(identifier: str) -> dict | None:
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT * FROM users WHERE email = %s OR user_id = %s",
+        (identifier, str(identifier))
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row
+
 def get_user_by_id(user_id: str) -> dict | None:
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -96,12 +108,12 @@ def update_password(user_id: str, new_hash: str) -> None:
     cursor.close()
     conn.close()
 
-def update_profile(user_id: str, full_name: str) -> None:
+def update_profile(user_id: str, full_name: str, avatar_url: str | None = None) -> None:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE users SET full_name = %s WHERE user_id = %s",
-        (full_name, str(user_id))
+        "UPDATE users SET full_name = %s, avatar_url = COALESCE(%s, avatar_url) WHERE user_id = %s",
+        (full_name, avatar_url, str(user_id))
     )
     conn.commit()
     cursor.close()

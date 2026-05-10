@@ -1,0 +1,33 @@
+HR@5  : 0.1378   NDCG@5: 0.1330
+HR@10 : 0.1378   NDCG@10: 0.1330
+HR@20 : 0.1378   NDCG@20: 0.1330
+[LSTM] ep=  1 | loss=9.0245 | HR@10=0.5459 | NDCG@10=0.3359  ← ✅ best
+[LSTM] ep=  2 | loss=8.9689 | HR@10=0.5443 | NDCG@10=0.3341
+[LSTM] ep=  3 | loss=8.9336 | HR@10=0.5435 | NDCG@10=0.3343
+[LSTM] ep=  4 | loss=8.9050 | HR@10=0.5428 | NDCG@10=0.3332
+[LSTM] ep=  5 | loss=8.8798 | HR@10=0.5418 | NDCG@10=0.3331
+[LSTM] ep=  6 | loss=8.8577 | HR@10=0.5420 | NDCG@10=0.3333
+[LSTM] ep=  7 | loss=8.8368 | HR@10=0.5391 | NDCG@10=0.3313
+[LSTM] ep=  8 | loss=8.8186 | HR@10=0.5400 | NDCG@10=0.3328
+HR@5  : 0.3686   NDCG@5: 0.2607
+HR@10 : 0.4997   NDCG@10: 0.3031
+HR@20 : 0.6412   NDCG@20: 0.3388
+[GRU4Rec] ep=  1 | loss=9.2862 | HR@10=0.5401 | NDCG@10=0.3308  ← ✅ best
+[GRU4Rec] ep=  2 | loss=9.1766 | HR@10=0.5422 | NDCG@10=0.3310  ← ✅ best
+[GRU4Rec] ep=  3 | loss=9.1446 | HR@10=0.5434 | NDCG@10=0.3334  ← ✅ best
+[GRU4Rec] ep=  4 | loss=9.1162 | HR@10=0.5438 | NDCG@10=0.3333
+[GRU4Rec] ep=  5 | loss=9.0900 | HR@10=0.5448 | NDCG@10=0.3346  ← ✅ best
+[GRU4Rec] ep=  6 | loss=9.0650 | HR@10=0.5456 | NDCG@10=0.3347  ← ✅ best
+[GRU4Rec] ep=  7 | loss=9.0419 | HR@10=0.5484 | NDCG@10=0.3370  ← ✅ best
+[GRU4Rec] ep=  8 | loss=9.0197 | HR@10=0.5455 | NDCG@10=0.3347
+[GRU4Rec] ep=  9 | loss=8.9981 | HR@10=0.5464 | NDCG@10=0.3358
+[GRU4Rec] ep= 10 | loss=8.9770 | HR@10=0.5461 | NDCG@10=0.3353
+[GRU4Rec] ep= 11 | loss=8.9101 | HR@10=0.5442 | NDCG@10=0.3342
+[GRU4Rec] ep= 12 | loss=8.8894 | HR@10=0.5418 | NDCG@10=0.3323
+[GRU4Rec] ep= 13 | loss=8.8741 | HR@10=0.5421 | NDCG@10=0.3330
+[GRU4Rec] ep= 14 | loss=8.8610 | HR@10=0.5410 | NDCG@10=0.3322
+HR@5  : 0.3715   NDCG@5: 0.2628
+HR@10 : 0.5046   NDCG@10: 0.3059
+HR@20 : 0.6467   NDCG@20: 0.3418
+HR@5    HR@10   NDCG@5  NDCG@10
+HR@10=0.5046  NDCG@10=0.3059

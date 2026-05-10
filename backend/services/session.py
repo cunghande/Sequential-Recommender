@@ -44,6 +44,12 @@ def init_sequence(user_id: str, history: list) -> None:
     if not _sessions[uid]:
         _sessions[uid] = list(history[-MAX_SEQ_LEN:])
 
+def remove_from_sequence(user_id: str, item_id: int) -> list:
+    """Xóa tất cả lần xuất hiện của item_id khỏi sequence."""
+    uid = str(user_id)
+    _sessions[uid] = [i for i in _sessions[uid] if i != item_id]
+    return list(_sessions[uid])
+
 def clear_sequence(user_id: str) -> None:
     """Xóa sequence khi user logout."""
     uid = str(user_id)

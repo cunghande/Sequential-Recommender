@@ -55,6 +55,7 @@ class LoginRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     full_name: str
+    avatar_url: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
@@ -69,8 +70,9 @@ class ResetPasswordRequest(BaseModel):
 
 class InteractionRequest(BaseModel):
     product_asin: str
-    action_type: str          # "view" | "rate"
+    action_type: str          # "view" | "cart" | "purchase" | "like" | "rate"
     rating: Optional[float] = None
+    user_id: Optional[str] = None  # Dùng cho demo user (không có token)
 
 class SequenceRecommendRequest(BaseModel):
     sequence: List[int]
@@ -101,12 +103,14 @@ def register(req: RegisterRequest):
 
     # Tạo user_id tự động dạng số (lấy từ DB)
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    count = cursor.fetchone()[0]
-    cursor.close()
-    conn.close()
-    user_id = str(count + 1000)  # bắt đầu từ 1000 để không trùng demo users
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COALESCE(MAX(CAST(user_id AS UNSIGNED)), 999) FROM users WHERE user_id REGEXP '^[0-9]+$'")
+        max_user_id = cursor.fetchone()[0]
+        cursor.close()
+    finally:
+        conn.close()
+    user_id = str(max_user_id + 1)
 
     hashed = auth_svc.hash_password(req.password)
     auth_svc.create_user(user_id, req.email, req.full_name, hashed)
@@ -120,9 +124,9 @@ def register(req: RegisterRequest):
 
 @app.post("/auth/login")
 def login(req: LoginRequest):
-    user = auth_svc.get_user_by_email(req.email)
+    user = auth_svc.get_user_by_login_identifier(req.email)
     if not user:
-        raise HTTPException(status_code=401, detail="Email không tồn tại")
+        raise HTTPException(status_code=401, detail="Email hoặc user_id không tồn tại")
     if not user.get('password_hash'):
         raise HTTPException(status_code=401, detail="Tài khoản demo — không hỗ trợ đăng nhập bằng mật khẩu")
     if not auth_svc.verify_password(req.password, user['password_hash']):
@@ -160,7 +164,7 @@ def get_me(user_id: str = Depends(get_current_user)):
 
 @app.put("/auth/profile")
 def update_profile(req: UpdateProfileRequest, user_id: str = Depends(get_current_user)):
-    auth_svc.update_profile(user_id, req.full_name)
+    auth_svc.update_profile(user_id, req.full_name, req.avatar_url)
     return {"message": "Cập nhật thành công"}
 
 
@@ -215,30 +219,32 @@ def get_products(category: Optional[str] = None, search: Optional[str] = None,
     """Danh sách sản phẩm với tìm kiếm và phân trang."""
     try:
         conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor = conn.cursor(dictionary=True)
 
-        where_clauses = []
-        params = []
-        if category:
-            where_clauses.append("category = %s")
-            params.append(category)
-        if search:
-            where_clauses.append("title LIKE %s")
-            params.append(f"%{search}%")
+            where_clauses = []
+            params = []
+            if category:
+                where_clauses.append("category = %s")
+                params.append(category)
+            if search:
+                where_clauses.append("title LIKE %s")
+                params.append(f"%{search}%")
 
-        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
-        offset = (page - 1) * limit
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+            offset = (page - 1) * limit
 
-        cursor.execute(f"SELECT COUNT(*) as total FROM products {where_sql}", params)
-        total = cursor.fetchone()['total']
+            cursor.execute(f"SELECT COUNT(*) as total FROM products {where_sql}", params)
+            total = cursor.fetchone()['total']
 
-        cursor.execute(
-            f"SELECT product_id as asin, title, category, price, image_url as img_url FROM products {where_sql} LIMIT %s OFFSET %s",
-            params + [limit, offset]
-        )
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
+            cursor.execute(
+                f"SELECT product_id as asin, title, category, price, image_url as img_url FROM products {where_sql} LIMIT %s OFFSET %s",
+                params + [limit, offset]
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+        finally:
+            conn.close()
 
         return {"total": total, "page": page, "limit": limit, "products": rows}
     except Exception as e:
@@ -250,11 +256,13 @@ def get_categories():
     """Danh sách tất cả categories."""
     try:
         conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category")
-        cats = [row[0] for row in cursor.fetchall()]
-        cursor.close()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category")
+            cats = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+        finally:
+            conn.close()
         return {"categories": cats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -271,13 +279,18 @@ def get_product(asin: str):
 
 # ─── Interaction ──────────────────────────────────────────────────────────────
 @app.post("/interaction")
-def record_interaction(req: InteractionRequest, user_id: str = Depends(get_current_user)):
+def record_interaction(req: InteractionRequest, current_user: Optional[str] = Depends(get_optional_user)):
     """
     Ghi nhận hành vi người dùng → cập nhật session → trả gợi ý mới.
-    Use Case 2 (view) & Use Case 3 (rating >= 4).
+    Use Case 2 (view/cart/purchase/like) & Use Case 3 (rating >= 4).
+    Hỗ trợ cả user đã đăng nhập (JWT) và demo user (truyền user_id trong body).
     """
-    if req.action_type not in ("view", "rate"):
-        raise HTTPException(status_code=400, detail="action_type phải là 'view' hoặc 'rate'")
+    user_id = current_user or req.user_id
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Cần user_id hoặc token để ghi nhận tương tác")
+
+    if req.action_type not in ("view", "cart", "purchase", "like", "rate"):
+        raise HTTPException(status_code=400, detail="action_type phải là 'view', 'cart', 'purchase', 'like' hoặc 'rate'")
     if req.action_type == "rate" and (req.rating is None or not (1 <= req.rating <= 5)):
         raise HTTPException(status_code=400, detail="Rating phải từ 1 đến 5")
 
@@ -335,6 +348,17 @@ def get_history(user_id: str):
     if history is None:
         return {"user_id": user_id, "history": []}
     return {"user_id": user_id, "history": history}
+
+
+@app.delete("/users/{user_id}/history/{product_asin}")
+def delete_history_item(user_id: str, product_asin: str):
+    """
+    Xóa một sản phẩm khỏi lịch sử xem của user.
+    Trả về history mới và recommendations mới.
+    """
+    result = recommender_service.delete_interaction(user_id, product_asin)
+    recommender_service.invalidate_popular_cache()
+    return result
 
 
 if __name__ == "__main__":
