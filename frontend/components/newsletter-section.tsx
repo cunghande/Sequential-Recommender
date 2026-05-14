@@ -17,16 +17,15 @@ export function NewsletterSection() {
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <Zap className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">Get exclusive deals</span>
+            <span className="text-sm font-semibold text-primary">Gaming commerce updates</span>
           </div>
 
           <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-4">
-            Stay in the <span className="text-primary">Game</span>
+            Get drops for your <span className="text-primary">setup</span>
           </h2>
           
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Subscribe to our newsletter and be the first to know about new releases, 
-            exclusive deals, and gaming news.
+            Subscribe for new gear, console accessories, gift cards, and product picks matched to how you shop.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">

@@ -33,6 +33,7 @@ type UserStoreContextType = {
 const UserStoreContext = createContext<UserStoreContextType | undefined>(undefined)
 
 function readStorage<T>(key: string, fallback: T): T {
+  // Đọc localStorage an toàn để tránh lỗi khi render phía server.
   if (typeof window === "undefined") return fallback
   try {
     const value = window.localStorage.getItem(key)
@@ -47,6 +48,7 @@ export function UserStoreProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<StoreProduct[]>([])
 
   useEffect(() => {
+    // Nạp giỏ hàng và yêu thích đã lưu từ lần truy cập trước.
     setCart(readStorage<CartItem[]>("nexus_cart", []))
     setFavorites(readStorage<StoreProduct[]>("nexus_favorites", []))
   }, [])
@@ -60,6 +62,7 @@ export function UserStoreProvider({ children }: { children: React.ReactNode }) {
   }, [favorites])
 
   const addToCart = (product: StoreProduct) => {
+    // Nếu sản phẩm đã có trong giỏ, tăng số lượng thay vì thêm dòng mới.
     setCart((items) => {
       const existing = items.find((item) => item.asin === product.asin)
       if (existing) {
@@ -76,6 +79,7 @@ export function UserStoreProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateCartQuantity = (asin: string, quantity: number) => {
+    // Số lượng <= 0 được hiểu là xóa khỏi giỏ.
     if (quantity <= 0) {
       removeFromCart(asin)
       return
@@ -99,6 +103,7 @@ export function UserStoreProvider({ children }: { children: React.ReactNode }) {
   }
 
   const toggleFavorite = (product: StoreProduct) => {
+    // Dùng một hàm cho cả thêm và bỏ yêu thích trên ProductCard.
     setFavorites((items) =>
       items.some((item) => item.asin === product.asin)
         ? items.filter((item) => item.asin !== product.asin)

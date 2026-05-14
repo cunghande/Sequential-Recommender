@@ -3,6 +3,7 @@
 import { Star, ShoppingCart, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { useUserStore } from "@/lib/user-store-context"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
@@ -20,9 +21,14 @@ interface GameCardProps {
 export function GameCard({ asin, title, img_url, image_url, price, category, rating = 4.5 }: GameCardProps) {
   const { addToCart, isFavorite, toggleFavorite } = useUserStore()
   const { user, guestId } = useAuth()
+  const searchParams = useSearchParams()
   const image = img_url || image_url || `https://placehold.co/800x500/1e293b/64748b?text=${encodeURIComponent(title)}`
   const product = { asin, title, img_url, image_url, price, category, rating }
   const wishlisted = isFavorite(asin)
+  const currentQuery = searchParams.toString()
+  const productHref = currentQuery
+    ? `/product/${asin}?from=${encodeURIComponent(`/products?${currentQuery}`)}`
+    : `/product/${asin}`
 
   const recordInteraction = (actionType: "cart" | "like") => {
     api.post("/interaction", {
@@ -35,7 +41,7 @@ export function GameCard({ asin, title, img_url, image_url, price, category, rat
   return (
     <div className="group relative rounded-xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all duration-300">
       {/* Image */}
-      <Link href={`/product/${asin}`}>
+      <Link href={productHref}>
         <div className="relative aspect-[16/10] overflow-hidden cursor-pointer">
           <img
             src={image}
@@ -74,7 +80,7 @@ export function GameCard({ asin, title, img_url, image_url, price, category, rat
         )}
 
         {/* Title */}
-        <Link href={`/product/${asin}`}>
+        <Link href={productHref}>
           <h3 className="font-bold text-lg mb-2 line-clamp-1 group-hover:text-primary transition-colors cursor-pointer" title={title}>
             {title}
           </h3>

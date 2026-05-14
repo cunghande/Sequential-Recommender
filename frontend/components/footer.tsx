@@ -1,13 +1,13 @@
 import Link from "next/link"
-import { Gamepad2, Facebook, Twitter, Instagram, Youtube, Twitch } from "lucide-react"
+import { Gamepad2, Facebook, Twitter, Instagram, Youtube, Twitch, Sparkles } from "lucide-react"
 
 const footerLinks = {
   store: [
-    { name: "All Games", href: "#" },
-    { name: "New Releases", href: "#" },
-    { name: "Best Sellers", href: "#" },
-    { name: "Deals", href: "#" },
-    { name: "Gift Cards", href: "#" },
+    { name: "Catalog", href: "/products" },
+    { name: "AI Picks", href: "/recommendations" },
+    { name: "Popular Gear", href: "/products" },
+    { name: "Cart", href: "/cart" },
+    { name: "Gift Cards", href: "/products?search=card" },
   ],
   support: [
     { name: "Help Center", href: "#" },
@@ -49,13 +49,16 @@ export function Footer() {
           {/* Logo & Description */}
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <Gamepad2 className="h-8 w-8 text-primary" />
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                <Gamepad2 className="h-6 w-6 text-primary" />
+                <Sparkles className="absolute -right-1 -top-1 h-3.5 w-3.5 text-primary" />
+              </span>
               <span className="text-xl font-bold tracking-tight">
-                NEXUS<span className="text-primary">GAMES</span>
+                GAMEGEAR<span className="text-primary">AI</span>
               </span>
             </Link>
             <p className="text-muted-foreground text-sm mb-6 max-w-xs">
-              Your ultimate destination for gaming. Discover, play, and connect with millions of gamers worldwide.
+              A modern gaming commerce storefront for games, consoles, controllers, cards, subscriptions, and accessories.
             </p>
             {/* Social Links */}
             <div className="flex items-center gap-3">
@@ -148,7 +151,7 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-border">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              © 2026 NexusGames. All rights reserved.
+              © 2026 GameGear AI. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">Payment Methods:</span>

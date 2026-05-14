@@ -9,8 +9,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'NexusGames - Your Ultimate Gaming Destination',
-  description: 'Discover, buy, and play the best games. Explore new releases, exclusive deals, and join millions of gamers worldwide.',
+  title: 'GameGear AI - Gaming Commerce Storefront',
+  description: 'Shop games, consoles, controllers, cards, subscriptions, and accessories with AI-powered recommendations.',
   generator: 'v0.app',
   icons: {
     icon: [

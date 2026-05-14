@@ -14,15 +14,14 @@ from passlib.context import CryptContext
 from backend.services.db import get_connection
 
 # ─── Cấu hình ────────────────────────────────────────────────────────────────
-JWT_SECRET = "seqrec-super-secret-key-2026"   # Đổi thành key ngẫu nhiên trong production
+JWT_SECRET = os.getenv("JWT_SECRET", "seqrec-super-secret-key-2026")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_HOURS = 24
+JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "24"))
 
-# Gmail SMTP — điền App Password 16 ký tự vào đây
-GMAIL_ADDRESS  = "docung6996@gmail.com"
-GMAIL_APP_PASS = "cung2004"   # ← Cần điền App Password
+GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "")
+GMAIL_APP_PASS = os.getenv("GMAIL_APP_PASS", "")
 
-FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # ─────────────────────────────────────────────────────────────────────────────
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -150,6 +149,10 @@ def send_reset_email(to_email: str, token: str) -> bool:
     Gửi email chứa link đặt lại mật khẩu tới người dùng.
     Trả về True nếu thành công.
     """
+    if not GMAIL_ADDRESS or not GMAIL_APP_PASS:
+        print("[ERROR] Missing GMAIL_ADDRESS or GMAIL_APP_PASS")
+        return False
+
     reset_link = f"{FRONTEND_URL}?reset_token={token}"
     
     msg = MIMEMultipart("alternative")

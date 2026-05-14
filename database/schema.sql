@@ -1,8 +1,8 @@
 -- =====================================================
 -- SeqRec AI — Database Schema v2.0
 -- =====================================================
-CREATE DATABASE IF NOT EXISTS recommendation_db;
-USE recommendation_db;
+CREATE DATABASE IF NOT EXISTS your_database_name;
+USE your_database_name;
 
 -- 1. Bảng Users (có auth + reset password)
 CREATE TABLE IF NOT EXISTS users (

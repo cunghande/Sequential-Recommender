@@ -26,6 +26,6 @@ dist-ssr/
 Thumbs.db
 
 # Project specific
-checkpoints/*.pt
-!checkpoints/GRU4Rec_best.pt
-!checkpoints/LSTM_best.pt
+ml/checkpoints/*.pt
+!ml/checkpoints/GRU4Rec_best.pt
+!ml/checkpoints/LSTM_best.pt

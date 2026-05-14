@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { GameCard } from "@/components/game-card"
@@ -15,18 +15,24 @@ const PAGE_SIZE = 16
 
 export default function ProductsPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const initialSearch = searchParams.get("search") || ""
+  const initialCategory = searchParams.get("category") || ""
+  const initialPage = Math.max(1, Number(searchParams.get("page") || "1") || 1)
 
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [search, setSearch] = useState(initialSearch)
-  const [activeCategory, setActiveCategory] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [activeCategory, setActiveCategory] = useState(initialCategory)
+  const [currentPage, setCurrentPage] = useState(initialPage)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setSearch(initialSearch)
-  }, [initialSearch])
+    setActiveCategory(initialCategory)
+    setCurrentPage(initialPage)
+  }, [initialSearch, initialCategory, initialPage])
 
   useEffect(() => {
     let cancelled = false
@@ -70,10 +76,6 @@ export default function ProductsPage() {
     })
   }, [products, search, activeCategory])
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [search, activeCategory])
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const page = Math.min(currentPage, totalPages)
   const paginatedProducts = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -85,6 +87,30 @@ export default function ProductsPage() {
       pageNumber === totalPages ||
       Math.abs(pageNumber - page) <= 1,
   )
+
+  const updateUrl = (next: { search?: string; category?: string; page?: number }) => {
+    const params = new URLSearchParams(searchParams.toString())
+    const nextSearch = next.search ?? search
+    const nextCategory = next.category ?? activeCategory
+    const nextPage = next.page ?? currentPage
+
+    if (nextSearch.trim()) params.set("search", nextSearch.trim())
+    else params.delete("search")
+
+    if (nextCategory) params.set("category", nextCategory)
+    else params.delete("category")
+
+    if (nextPage > 1) params.set("page", String(nextPage))
+    else params.delete("page")
+
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
+
+  const setPage = (nextPage: number) => {
+    setCurrentPage(nextPage)
+    updateUrl({ page: nextPage })
+  }
 
   return (
     <main className="min-h-screen bg-background pt-24">
@@ -104,7 +130,12 @@ export default function ProductsPage() {
             <Input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value
+                setSearch(value)
+                setCurrentPage(1)
+                updateUrl({ search: value, page: 1 })
+              }}
               placeholder="Search by name, category, asin..."
               className="h-11 bg-secondary pl-10"
             />
@@ -117,6 +148,7 @@ export default function ProductsPage() {
             onClick={() => {
               setActiveCategory("")
               setCurrentPage(1)
+              updateUrl({ category: "", page: 1 })
             }}
             className="shrink-0"
           >
@@ -129,6 +161,7 @@ export default function ProductsPage() {
               onClick={() => {
                 setActiveCategory(category)
                 setCurrentPage(1)
+                updateUrl({ category, page: 1 })
               }}
               className="shrink-0"
             >
@@ -142,7 +175,14 @@ export default function ProductsPage() {
             Showing {firstItem}-{lastItem} of {filtered.length} products
           </p>
           {activeCategory && (
-            <Button variant="ghost" onClick={() => setActiveCategory("")}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setActiveCategory("")
+                setCurrentPage(1)
+                updateUrl({ category: "", page: 1 })
+              }}
+            >
               Clear category
             </Button>
           )}
@@ -169,7 +209,7 @@ export default function ProductsPage() {
                 <Button
                   variant="outline"
                   disabled={page === 1}
-                  onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+                  onClick={() => setPage(Math.max(1, page - 1))}
                 >
                   <ChevronLeft className="mr-2 h-4 w-4" />
                   Previous
@@ -184,7 +224,7 @@ export default function ProductsPage() {
                       <Button
                         variant={pageNumber === page ? "default" : "outline"}
                         className="h-10 w-10 p-0"
-                        onClick={() => setCurrentPage(pageNumber)}
+                        onClick={() => setPage(pageNumber)}
                       >
                         {pageNumber}
                       </Button>
@@ -194,7 +234,7 @@ export default function ProductsPage() {
                 <Button
                   variant="outline"
                   disabled={page === totalPages}
-                  onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
                 >
                   Next
                   <ChevronRight className="ml-2 h-4 w-4" />

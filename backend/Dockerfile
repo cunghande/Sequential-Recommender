@@ -1,16 +1,13 @@
 FROM python:3.10-slim
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy source code
-COPY . .
+COPY backend backend/
+COPY ml/checkpoints ml/checkpoints/
 
-# Expose port
 EXPOSE 8000
 
-# Start app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

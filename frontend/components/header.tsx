@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Search, ShoppingCart, Menu, X, Gamepad2, User, LogOut, Settings, History, Heart, KeyRound, UserRound } from "lucide-react"
+import { Search, ShoppingCart, Menu, X, Gamepad2, User, LogOut, Settings, History, Heart, KeyRound, UserRound, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
@@ -47,28 +47,28 @@ export function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative">
-              <Gamepad2 className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+              <Gamepad2 className="h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+              <Sparkles className="absolute -right-1 -top-1 h-4 w-4 text-primary" />
             </div>
             <span className="text-xl lg:text-2xl font-bold tracking-tight">
-              NEXUS<span className="text-primary">GAMES</span>
+              GAMEGEAR<span className="text-primary">AI</span>
             </span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
             <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Store
+              Home
             </Link>
             <Link href="/recommendations" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">
-              For You ✨
+              AI Picks
             </Link>
             <Link href="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Products
+              Catalog
             </Link>
-            <Link href="/products?sort=deals" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Deals
+            <Link href="/cart" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              Cart
             </Link>
           </nav>
 
@@ -219,13 +219,13 @@ export function Header() {
             </form>
             <nav className="flex flex-col gap-4">
               <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Store
+                Home
               </Link>
               <Link href="/recommendations" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">
-                For You ✨
+                AI Picks
               </Link>
               <Link href="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Products & Categories
+                Catalog & Categories
               </Link>
               
               {user ? (

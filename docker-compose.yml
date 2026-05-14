@@ -5,25 +5,25 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-cunghande}
-      MYSQL_DATABASE: ${DB_NAME:-recommendation_db}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
+      MYSQL_DATABASE: ${DB_NAME:-your_database_name}
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./data/database.sql:/docker-entrypoint-initdb.d/1_database.sql
-      - ./data/migrate_v2.sql:/docker-entrypoint-initdb.d/2_migrate_v2.sql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
 
   backend:
     build: 
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - DB_HOST=db
       - DB_USER=root
-      - DB_PASSWORD=${DB_PASSWORD:-cunghande}
-      - DB_NAME=${DB_NAME:-recommendation_db}
+      - DB_PASSWORD=${DB_PASSWORD:-your_mysql_password}
+      - DB_NAME=${DB_NAME:-your_database_name}
     depends_on:
       - db
 

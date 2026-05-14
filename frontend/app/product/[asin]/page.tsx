@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { GameCard } from "@/components/game-card"
@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation"
 export default function ProductDetailPage() {
   const { asin } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = searchParams.get("from") || "/products"
   const { user, guestId } = useAuth()
   const { addToCart, addFavorite, isFavorite, toggleFavorite } = useUserStore()
   const [product, setProduct] = useState<any>(null)
@@ -120,6 +122,10 @@ export default function ProductDetailPage() {
     }
   }
 
+  const closeProduct = () => {
+    router.push(returnTo)
+  }
+
   return (
     <main className="min-h-screen bg-background pt-24">
       <Header />
@@ -132,19 +138,13 @@ export default function ProductDetailPage() {
               variant="outline"
               size="icon"
               className="h-10 w-10 rounded-full border-border text-muted-foreground hover:border-primary hover:bg-primary/10 hover:text-primary"
-              onClick={() => {
-                if (window.history.length > 1) {
-                  router.back()
-                } else {
-                  router.push("/products")
-                }
-              }}
+              onClick={closeProduct}
               aria-label="Close product detail"
               title="Close"
             >
               <X className="h-5 w-5" />
             </Button>
-            <Link href="/products" className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors">
+            <Link href={returnTo} className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Products
             </Link>

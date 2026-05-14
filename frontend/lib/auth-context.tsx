@@ -7,7 +7,7 @@ interface User {
   user_id: string
   email: string
   full_name?: string
-  avatar_url?: string // Placeholder for UI
+  avatar_url?: string
 }
 
 interface AuthContextType {
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    // Load from local storage on mount
+    // Nạp lại phiên đăng nhập để user refresh trang không bị mất trạng thái.
     const storedToken = localStorage.getItem("nexus_token")
     const storedUser = localStorage.getItem("nexus_user")
     
@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = (newToken: string, newUser: User) => {
+    // Lưu JWT và user sau khi backend xác thực thành công.
     setToken(newToken)
     setUser(newUser)
     localStorage.setItem("nexus_token", newToken)
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    // Gọi backend xóa session gợi ý, sau đó dọn localStorage phía trình duyệt.
     if (token) {
       api.post('/auth/logout', {}).catch(() => {})
     }
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateUser = (updatedFields: Partial<User>) => {
+    // Đồng bộ thay đổi profile/avatar vào context và localStorage.
     if (user) {
       const newUser = { ...user, ...updatedFields }
       setUser(newUser)

@@ -33,15 +33,17 @@ export function FeaturedGames() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
           <div>
             <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4">
-              Featured <span className="text-primary">Products</span>
+              Popular <span className="text-primary">Game Gear</span>
             </h2>
             <p className="text-muted-foreground max-w-xl">
-              Handpicked selection of the most popular and highly-rated products in our store.
+              Products many players view, rate, add to cart, and buy across the gaming catalog.
             </p>
           </div>
-          <Button variant="outline" className="border-border hover:bg-secondary w-fit">
-            View All Products
-            <ArrowRight className="h-4 w-4 ml-2" />
+          <Button asChild variant="outline" className="border-border hover:bg-secondary w-fit">
+            <a href="/products">
+              View Catalog
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </a>
           </Button>
         </div>
 

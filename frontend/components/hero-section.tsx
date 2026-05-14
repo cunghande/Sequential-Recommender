@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, ChevronLeft, ChevronRight, Star, Clock } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star, ShieldCheck } from "lucide-react"
 import { api } from "@/lib/api"
 
 export function HeroSection() {
@@ -75,7 +75,7 @@ export function HeroSection() {
               {game.category || "General"}
             </span>
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30">
-              Trending
+              Game Commerce
             </span>
           </div>
 
@@ -86,7 +86,7 @@ export function HeroSection() {
 
           {/* Description */}
           <p className="text-lg md:text-xl text-muted-foreground mb-6 leading-relaxed text-pretty">
-            Experience the best products hand-picked for you based on popularity and trends.
+            Shop games, consoles, controllers, headsets, cards, and accessories with recommendations that adapt to every click.
           </p>
 
           {/* Meta Info */}
@@ -97,8 +97,8 @@ export function HeroSection() {
               <span className="text-muted-foreground">/5</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-5 w-5" />
-              <span>Available Now</span>
+              <ShieldCheck className="h-5 w-5" />
+              <span>Secure checkout</span>
             </div>
           </div>
 
@@ -112,7 +112,7 @@ export function HeroSection() {
           {/* CTA Buttons */}
           <div className="flex flex-wrap gap-4">
             <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg px-8 h-14" onClick={() => window.location.href = `/product/${game.asin}`}>
-              View Product
+              Shop Product
             </Button>
           </div>
         </div>
