@@ -18,8 +18,8 @@ export function FeaturedGames() {
           setProducts(res.recommendations)
         }
       })
-      .catch((error) => {
-        console.warn("Backend unavailable, using fallback products.", error)
+      .catch(() => {
+        console.warn("Backend unavailable, using fallback products.")
         setProducts(fallbackProducts.slice(0, 8))
       })
       .finally(() => setLoading(false))

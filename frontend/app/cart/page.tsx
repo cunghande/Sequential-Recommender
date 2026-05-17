@@ -25,7 +25,7 @@ export default function CartPage() {
           product_asin: item.asin,
           action_type: "purchase",
           user_id: user?.user_id || guestId,
-        }).catch((error) => console.warn("Could not save purchase interaction.", error)),
+        }).catch(() => console.warn("Could not save purchase interaction.")),
       ),
     )
     clearCart()

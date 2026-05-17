@@ -1,11 +1,10 @@
-# Machine Learning Artifacts
+# Machine Learning
 
-Thu muc nay tach rieng phan AI khoi backend/frontend.
+Thu muc nay chi giu cac thanh phan can cho training/inference.
 
-- `notebooks/`: notebook train va phan tich du lieu.
-- `notebooks/archive/`: notebook Kaggle thu nghiem, khong phai luong chay chinh.
-- `checkpoints/`: model weights va `model_artifacts.pkl` dung cho backend inference.
-- `reports/`: metric, bang so sanh va hinh anh dua vao bao cao.
+- `checkpoints/`: model weights va `model_artifacts.pkl` duoc backend doc khi goi y.
+- `notebooks/seqrec_training_pipeline.ipynb`: notebook train/evaluate chinh.
+- `reports/`: metric va output tham khao cho bao cao.
+- `colab_model_api.py`: FastAPI model server chay tren Colab, chi tra ve `item_id + score`.
 
-Backend uu tien doc checkpoint tu `ml/checkpoints/` va fallback ve `checkpoints/` cu neu can.
-
+Khong commit cache, log, notebook output tam, hoac script sinh bao cao trung gian.

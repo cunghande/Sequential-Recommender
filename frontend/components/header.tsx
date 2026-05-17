@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useUserStore } from "@/lib/user-store-context"
 
 export function Header() {
@@ -25,6 +25,7 @@ export function Header() {
   const { user, logout } = useAuth()
   const { cartCount } = useUserStore()
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleLogout = () => {
     logout()
@@ -40,6 +41,12 @@ export function Header() {
   }
 
   const menuItemClass = "cursor-pointer focus:bg-primary/10 focus:text-primary data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary"
+  const navLinkClass = (href: string) =>
+    `text-sm transition-colors ${
+      pathname === href
+        ? "font-bold text-primary hover:text-primary/80"
+        : "font-medium text-muted-foreground hover:text-primary"
+    }`
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -58,16 +65,16 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
-            <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/" className={navLinkClass("/")}>
               Home
             </Link>
-            <Link href="/recommendations" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">
+            <Link href="/recommendations" className={navLinkClass("/recommendations")}>
               AI Picks
             </Link>
-            <Link href="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/products" className={navLinkClass("/products")}>
               Catalog
             </Link>
-            <Link href="/cart" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/cart" className={navLinkClass("/cart")}>
               Cart
             </Link>
           </nav>
@@ -218,13 +225,13 @@ export function Header() {
               />
             </form>
             <nav className="flex flex-col gap-4">
-              <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/" className={navLinkClass("/")}>
                 Home
               </Link>
-              <Link href="/recommendations" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">
+              <Link href="/recommendations" className={navLinkClass("/recommendations")}>
                 AI Picks
               </Link>
-              <Link href="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/products" className={navLinkClass("/products")}>
                 Catalog & Categories
               </Link>
               

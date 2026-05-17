@@ -1,10 +1,15 @@
 from collections import Counter
 from pathlib import Path
 from typing import Any
+import json
+import re
+from urllib import error as url_error
+from urllib import request as url_request
 
 import pickle
 import torch
 
+from backend.app.core.config import settings
 from backend.models.gru4rec import GRU4Rec
 from backend.services import session as session_store
 from backend.services.db import get_connection
@@ -15,6 +20,21 @@ CHECKPOINT_DIRS = [
     PROJECT_ROOT / "checkpoints",
 ]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+TITLE_STOPWORDS = {
+    "and",
+    "for",
+    "the",
+    "with",
+    "edition",
+    "digital",
+    "code",
+    "game",
+    "games",
+    "playstation",
+    "xbox",
+    "nintendo",
+    "switch",
+}
 
 
 class RecommenderService:
@@ -122,6 +142,18 @@ class RecommenderService:
         finally:
             conn.close()
 
+    def _ensure_interaction_user(self, user_id: str) -> None:
+        """Tạo user guest tối giản để interaction không vi phạm khóa ngoại."""
+        if not str(user_id).startswith("guest_"):
+            return
+        self._execute_write(
+            """
+            INSERT IGNORE INTO users (user_id, email, full_name, password_hash)
+            VALUES (%s, %s, %s, NULL)
+            """,
+            (str(user_id), f"{user_id}@guest.local", "Guest User"),
+        )
+
     def _metadata_for_asin(self, asin: str) -> dict:
         """Lấy metadata sản phẩm, ưu tiên MySQL và fallback về artifact train."""
         return self.rich_metadata.get(asin) or self.meta.get(asin, {})
@@ -141,6 +173,44 @@ class RecommenderService:
             "score": round(float(score), 4),
         }
 
+    def _title_tokens(self, title: str) -> set[str]:
+        tokens = re.findall(r"[a-z0-9]+", (title or "").lower())
+        return {token for token in tokens if len(token) > 2 and token not in TITLE_STOPWORDS}
+
+    def _popular_item_scores(self, limit: int = 500) -> dict[int, float]:
+        try:
+            rows = self._fetch_all(
+                """
+                SELECT product_id,
+                       SUM(CASE
+                           WHEN action_type = 'purchase' THEN 5
+                           WHEN action_type = 'cart' THEN 3
+                           WHEN action_type IN ('like', 'rate') THEN 4
+                           ELSE 1
+                       END) as popularity_score
+                FROM interactions
+                WHERE action_type IN ('view', 'cart', 'purchase', 'like', 'rate')
+                GROUP BY product_id
+                ORDER BY popularity_score DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+        except Exception as exc:
+            print(f"[ERROR] _popular_item_scores: {exc}")
+            return {}
+
+        raw_scores: dict[int, float] = {}
+        for row in rows:
+            item_id = self.item2id.get(row["product_id"], -1)
+            if item_id > 0:
+                raw_scores[item_id] = float(row["popularity_score"] or 0.0)
+
+        max_score = max(raw_scores.values(), default=0.0)
+        if max_score <= 0:
+            return {}
+        return {item_id: score / max_score for item_id, score in raw_scores.items()}
+
     def _predict(self, history: list[int], top_k: int) -> list[dict]:
         """Dùng GRU4Rec dự đoán top sản phẩm tiếp theo từ chuỗi item_id."""
         if not self.model:
@@ -157,6 +227,169 @@ class RecommenderService:
         seq_len = torch.tensor([len(history)], dtype=torch.long).to(DEVICE)
         top_ids, top_scores = self.model.predict_topk(item_seq, seq_len, top_k=top_k, exclude_ids=history)
         return [self._enrich(item_id, score) for item_id, score in zip(top_ids, top_scores)]
+
+    # Colab is optional and stateless: it only receives a sequence and returns item_id + score.
+    # Product metadata, user history, DB writes, and fallback behavior stay in the local backend.
+    def _colab_endpoint(self) -> str:
+        base_url = settings.colab_model_api_url.rstrip("/")
+        if not base_url:
+            return ""
+        if base_url.endswith("/recommend/sequence"):
+            return base_url
+        return f"{base_url}/recommend/sequence"
+
+    def _predict_with_colab(self, history: list[int], top_k: int) -> list[dict]:
+        if not settings.use_colab_model:
+            return []
+
+        endpoint = self._colab_endpoint()
+        if not endpoint:
+            return []
+
+        history = [item_id for item_id in history if item_id > 0]
+        if not history:
+            return []
+
+        payload = json.dumps({"sequence": history, "top_k": top_k}).encode("utf-8")
+        request = url_request.Request(
+            endpoint,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with url_request.urlopen(request, timeout=settings.colab_model_timeout_seconds) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except (OSError, TimeoutError, ValueError, url_error.URLError, url_error.HTTPError) as exc:
+            print(f"[WARNING] Colab model unavailable, using local recommender: {exc}")
+            return []
+
+        recommendations = data.get("recommendations", [])
+        result: list[dict] = []
+        seen = set(history)
+        for item in recommendations:
+            try:
+                item_id = int(item.get("item_id"))
+                score = float(item.get("score", 0.0))
+            except (TypeError, ValueError):
+                continue
+            if item_id <= 0 or item_id in seen:
+                continue
+            result.append(self._enrich(item_id, score))
+            if len(result) >= top_k:
+                break
+        return result
+
+    def _fill_recommendations(self, primary: list[dict], fallback: list[dict], top_k: int) -> list[dict]:
+        result: list[dict] = []
+        seen: set[str] = set()
+        for item in primary + fallback:
+            asin = item.get("asin")
+            if not asin or asin in seen:
+                continue
+            seen.add(asin)
+            result.append(item)
+            if len(result) >= top_k:
+                break
+        return result
+
+    # Content ranking keeps recommendations aligned with the products the user actually viewed.
+    # This prevents the neural model from dominating with generic high-score products.
+    def _content_recommendations(self, history: list[int], top_k: int) -> list[dict]:
+        history = [item_id for item_id in history if item_id > 0]
+        if not history:
+            return []
+
+        seen = set(history)
+        recent = history[-10:]
+        category_weights: Counter[str] = Counter()
+        token_weights: Counter[str] = Counter()
+
+        for index, item_id in enumerate(reversed(recent), start=1):
+            asin = self.id2item.get(item_id, "?")
+            metadata = self._metadata_for_asin(asin)
+            weight = max(0.3, 1.2 * (0.85 ** (index - 1)))
+            category = metadata.get("category")
+            if category:
+                category_weights[str(category)] += weight
+            for token in self._title_tokens(metadata.get("title", "")):
+                token_weights[token] += weight
+
+        popular_scores = self._popular_item_scores()
+        candidates: list[tuple[float, int]] = []
+        for asin, metadata in self.rich_metadata.items():
+            item_id = self.item2id.get(asin, -1)
+            if item_id <= 0 or item_id in seen:
+                continue
+
+            category = str(metadata.get("category") or "")
+            title_tokens = self._title_tokens(metadata.get("title", ""))
+            category_score = category_weights.get(category, 0.0) * 4.0
+            token_score = sum(token_weights[token] for token in title_tokens) * 2.25
+            popularity_score = popular_scores.get(item_id, 0.0) * 0.75
+            score = category_score + token_score + popularity_score
+            if score > 0:
+                candidates.append((score, item_id))
+
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return [self._enrich(item_id, score) for score, item_id in candidates[:top_k]]
+
+    # Final personalized ranking blends product similarity with model scores.
+    # Recent items matter more, but repeated older categories can outweigh one newer outlier.
+    def _history_context_items(self, history: list[int], limit: int = 3) -> list[dict]:
+        context: list[dict] = []
+        seen: set[int] = set()
+        for item_id in reversed([item_id for item_id in history if item_id > 0]):
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            context.append(self._enrich(item_id))
+            if len(context) >= limit:
+                break
+        return context
+
+    def _hybrid_recommendations(
+        self,
+        history: list[int],
+        top_k: int,
+        model_items: list[dict] | None = None,
+    ) -> list[dict]:
+        content_items = self._content_recommendations(history, top_k * 3)
+        model_items = model_items or self._predict(history, top_k * 3)
+
+        combined: dict[str, dict] = {}
+        history_len = len([item_id for item_id in history if item_id > 0])
+        content_weight = 0.82 if history_len < 5 else 0.68
+        model_weight = 1.0 - content_weight
+
+        def add_items(items: list[dict], weight: float) -> None:
+            if not items:
+                return
+            max_score = max((float(item.get("score") or 0.0) for item in items), default=0.0) or 1.0
+            for rank, item in enumerate(items):
+                asin = item.get("asin")
+                if not asin:
+                    continue
+                normalized = float(item.get("score") or 0.0) / max_score
+                rank_bonus = 1.0 / (rank + 1)
+                score = weight * (normalized + rank_bonus)
+                current = combined.get(asin)
+                if current:
+                    current["score"] += score
+                else:
+                    next_item = dict(item)
+                    next_item["score"] = score
+                    combined[asin] = next_item
+
+        add_items(content_items, content_weight)
+        add_items(model_items, model_weight)
+
+        ranked = sorted(combined.values(), key=lambda item: item["score"], reverse=True)
+        return [
+            {**item, "score": round(float(item["score"]), 4)}
+            for item in ranked[:top_k]
+        ]
 
     def _fallback_popular_from_train(self, top_k: int, current_items: list[dict]) -> list[dict]:
         """Bổ sung popular bằng dữ liệu train khi MySQL chưa đủ interactions."""
@@ -176,7 +409,7 @@ class RecommenderService:
 
     def get_popular_products(self, top_k: int = 12) -> list[dict]:
         """Lấy sản phẩm phổ biến cho user mới hoặc khi chưa có lịch sử."""
-        if self.popular_cache:
+        if len(self.popular_cache) >= top_k:
             return self.popular_cache[:top_k]
 
         result: list[dict] = []
@@ -249,11 +482,34 @@ class RecommenderService:
         sequence = self._sequence_for_user(user_id)
         if not sequence:
             return {"source": "popular", "recommendations": self.get_popular_products(top_k)}
-        return {"source": "personalized", "recommendations": self._predict(sequence, top_k)}
+        colab_recommendations = self._predict_with_colab(sequence, top_k)
+        if colab_recommendations:
+            hybrid_recommendations = self._hybrid_recommendations(
+                sequence,
+                top_k,
+                colab_recommendations,
+            )
+            return {
+                "source": "personalized",
+                "model_source": "colab_hybrid",
+                "context_items": self._history_context_items(sequence),
+                "recommendations": hybrid_recommendations,
+            }
+        local_recommendations = self._hybrid_recommendations(sequence, top_k)
+        return {
+            "source": "personalized",
+            "model_source": "local",
+            "context_items": self._history_context_items(sequence),
+            "recommendations": local_recommendations,
+        }
 
     def get_recommendations(self, sequence_history: list[int], top_k: int = 10) -> list[dict]:
         """Gợi ý realtime từ sequence truyền trực tiếp, dùng cho endpoint demo."""
-        return self._predict(sequence_history, top_k)
+        colab_recommendations = self._predict_with_colab(sequence_history, top_k)
+        if colab_recommendations:
+            return self._hybrid_recommendations(sequence_history, top_k, colab_recommendations)
+        local_recommendations = self._hybrid_recommendations(sequence_history, top_k)
+        return local_recommendations
 
     def get_user_history(self, user_id: str) -> list[dict] | None:
         """Trả lịch sử xem/mua/thích có metadata để hiển thị trong profile."""
@@ -288,6 +544,7 @@ class RecommenderService:
     def record_interaction(self, user_id: str, product_asin: str, action_type: str, rating: float | None = None) -> dict:
         """Lưu hành vi vào DB, cập nhật session và trả gợi ý mới ngay."""
         try:
+            self._ensure_interaction_user(str(user_id))
             self._execute_write(
                 "INSERT INTO interactions (user_id, product_id, action_type, rating) VALUES (%s, %s, %s, %s)",
                 (str(user_id), product_asin, action_type, rating),

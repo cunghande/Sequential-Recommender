@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -19,7 +19,10 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = searchParams.get("from") || "/products"
+  const backLabel = returnTo.startsWith("/recommendations") ? "Back to AI Picks" : "Back to Products"
   const { user, guestId } = useAuth()
+  const identity = user?.user_id || guestId
+  const recordedViewRef = useRef<string>("")
   const { addToCart, addFavorite, isFavorite, toggleFavorite } = useUserStore()
   const [product, setProduct] = useState<any>(null)
   const [similar, setSimilar] = useState<any[]>([])
@@ -32,22 +35,11 @@ export default function ProductDetailPage() {
     // Load product detail
     api.get(`/products/${asin}`)
       .then(res => setProduct(res))
-      .catch((error) => {
-        console.warn("Backend unavailable, using fallback product.", error)
+      .catch(() => {
+        console.warn("Backend unavailable, using fallback product.")
         setProduct(findFallbackProduct(String(asin)))
       })
       .finally(() => setLoading(false))
-
-    // Record view interaction
-    const payload: any = { product_asin: asin, action_type: 'view' }
-    if (user?.user_id) {
-      payload.user_id = user.user_id
-    } else {
-      payload.user_id = guestId // Fallback for anonymous
-    }
-    
-    api.post('/interaction', payload)
-      .catch(console.error)
 
     // Load similar products. The sequence endpoint expects numeric item ids, so use popular
     // recommendations here because this route receives a product asin string.
@@ -55,12 +47,25 @@ export default function ProductDetailPage() {
       .then(res => {
         if (res.recommendations) setSimilar(res.recommendations)
       })
-      .catch((error) => {
-        console.warn("Backend unavailable, using fallback similar products.", error)
+      .catch(() => {
+        console.warn("Backend unavailable, using fallback similar products.")
         setSimilar(fallbackProducts.filter((item) => item.asin !== asin).slice(0, 4))
       })
 
   }, [asin])
+
+  useEffect(() => {
+    if (!asin || !identity) return
+    const viewKey = `${identity}:${String(asin)}`
+    if (recordedViewRef.current === viewKey) return
+    recordedViewRef.current = viewKey
+
+    api.post('/interaction', {
+      product_asin: asin,
+      action_type: 'view',
+      user_id: identity,
+    }).catch(() => console.warn("Could not save view interaction."))
+  }, [asin, identity])
 
   if (loading) {
     return (
@@ -96,8 +101,8 @@ export default function ProductDetailPage() {
         rating: value,
         user_id: user?.user_id || guestId,
       })
-    } catch (error) {
-      console.warn("Could not save rating interaction.", error)
+    } catch {
+      console.warn("Could not save rating interaction.")
     }
   }
 
@@ -107,7 +112,7 @@ export default function ProductDetailPage() {
       product_asin: product.asin,
       action_type: 'cart',
       user_id: user?.user_id || guestId,
-    }).catch((error) => console.warn("Could not save cart interaction.", error))
+    }).catch(() => console.warn("Could not save cart interaction."))
   }
 
   const handleToggleFavorite = () => {
@@ -118,7 +123,7 @@ export default function ProductDetailPage() {
         product_asin: product.asin,
         action_type: 'like',
         user_id: user?.user_id || guestId,
-      }).catch((error) => console.warn("Could not save like interaction.", error))
+      }).catch(() => console.warn("Could not save like interaction."))
     }
   }
 
@@ -146,7 +151,7 @@ export default function ProductDetailPage() {
             </Button>
             <Link href={returnTo} className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Products
+              {backLabel}
             </Link>
           </div>
         </div>

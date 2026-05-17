@@ -26,6 +26,19 @@ dist-ssr/
 Thumbs.db
 
 # Project specific
+HUONG_DAN_CHAY_DU_AN.md
+*.log
+*.err.log
+*.out.log
 ml/checkpoints/*.pt
 !ml/checkpoints/GRU4Rec_best.pt
 !ml/checkpoints/LSTM_best.pt
+ml/notebooks/data/
+ml/notebooks/outputs/
+ml/notebooks/archive/
+ml/notebooks/*report*.ipynb
+ml/notebooks/*report*.py
+ml/notebooks/*docx*.py
+ml/notebooks/rebuild_lists_*.py
+ml/notebooks/update_lists_*.py
+ml/notebooks/finalize_lists_*.py

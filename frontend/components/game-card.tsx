@@ -3,7 +3,7 @@
 import { Star, ShoppingCart, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useUserStore } from "@/lib/user-store-context"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
@@ -21,21 +21,21 @@ interface GameCardProps {
 export function GameCard({ asin, title, img_url, image_url, price, category, rating = 4.5 }: GameCardProps) {
   const { addToCart, isFavorite, toggleFavorite } = useUserStore()
   const { user, guestId } = useAuth()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const image = img_url || image_url || `https://placehold.co/800x500/1e293b/64748b?text=${encodeURIComponent(title)}`
   const product = { asin, title, img_url, image_url, price, category, rating }
   const wishlisted = isFavorite(asin)
   const currentQuery = searchParams.toString()
-  const productHref = currentQuery
-    ? `/product/${asin}?from=${encodeURIComponent(`/products?${currentQuery}`)}`
-    : `/product/${asin}`
+  const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname
+  const productHref = `/product/${asin}?from=${encodeURIComponent(returnTo)}`
 
   const recordInteraction = (actionType: "cart" | "like") => {
     api.post("/interaction", {
       product_asin: asin,
       action_type: actionType,
       user_id: user?.user_id || guestId,
-    }).catch((error) => console.warn("Could not save product interaction.", error))
+    }).catch(() => console.warn("Could not save product interaction."))
   }
 
   return (

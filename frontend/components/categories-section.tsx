@@ -29,7 +29,7 @@ export function CategoriesSection() {
         }))
         setCategories(mapped)
       }
-    }).catch(console.error)
+    }).catch(() => console.warn("Backend unavailable, categories hidden."))
   }, [])
 
   if (categories.length === 0) return null

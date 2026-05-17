@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Star, ShieldCheck } from "lucide-react"
 import { api } from "@/lib/api"
+import { fallbackProducts } from "@/lib/fallback-products"
 
 export function HeroSection() {
   const [featuredGames, setFeaturedGames] = useState<any[]>([])
@@ -17,7 +18,10 @@ export function HeroSection() {
           setFeaturedGames(res.recommendations)
         }
       })
-      .catch(console.error)
+      .catch(() => {
+        console.warn("Backend unavailable, using fallback hero products.")
+        setFeaturedGames(fallbackProducts.slice(0, 3))
+      })
   }, [])
 
   useEffect(() => {

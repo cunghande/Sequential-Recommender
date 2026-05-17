@@ -20,7 +20,9 @@ class Settings:
     jwt_expire_hours = int(os.getenv("JWT_EXPIRE_HOURS", "24"))
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     checkpoint_dir = Path(os.getenv("CHECKPOINT_DIR", ML_DIR / "checkpoints"))
+    colab_model_api_url = os.getenv("COLAB_MODEL_API_URL", "").strip()
+    use_colab_model = os.getenv("USE_COLAB_MODEL", "false").lower() in ("1", "true", "yes", "on")
+    colab_model_timeout_seconds = float(os.getenv("COLAB_MODEL_TIMEOUT_SECONDS", "8"))
 
 
 settings = Settings()
-

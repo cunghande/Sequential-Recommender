@@ -47,8 +47,8 @@ export default function ProductsPage() {
         if (cancelled) return
         setProducts(productRes.products || [])
         setCategories(categoryRes.categories || [])
-      } catch (error) {
-        console.warn("Backend unavailable, using fallback catalog.", error)
+      } catch {
+        console.warn("Backend unavailable, using fallback catalog.")
         if (cancelled) return
         setProducts(fallbackProducts)
         setCategories(Array.from(new Set(fallbackProducts.map((item) => item.category))))

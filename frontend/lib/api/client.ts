@@ -1,6 +1,6 @@
 import axios from "axios"
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001"
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
 export function getAuthHeaders() {
   // Lay JWT moi nhat tu localStorage cho moi request phia client.
@@ -29,4 +29,3 @@ export const apiClient = {
     return response.data
   },
 }
-
