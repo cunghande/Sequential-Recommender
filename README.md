@@ -1,4 +1,4 @@
-# Do An 2 AI Project - Sequential Product Recommendation
+# Sequential Product Recommendation
 
 Website thương mại điện tử sản phẩm game tích hợp hệ thống gợi ý sản phẩm theo chuỗi hành vi người dùng. Dự án kết hợp Next.js, FastAPI, MySQL và mô hình GRU4Rec/LSTM để minh họa đầy đủ quy trình xây dựng một hệ thống phần mềm AI: thu thập dữ liệu, tiền xử lý, quan sát dữ liệu, huấn luyện mô hình, đánh giá, triển khai và demo.
 
